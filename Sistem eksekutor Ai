@@ -15,37 +15,55 @@ local OPENAI_API_KEY = "ISI_API_KEY_OPENAI_DISINI"
 local _custom_global_env = getgenv and getgenv() or _G
 local requestFunc = request or http_request or (http and http.request)
 -- ====================================================================
--- BAGIAN 2: AUTOMATIC UI BUILDER (INSTANCE GENERATOR)
+-- PERBAIKAN BAGIAN 2: AUTOMATIC UI BUILDER WITH ACTIVE CHATBOX & DRAGGABLE FRAME
 -- ====================================================================
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 
--- Membersihkan UI lama agar tidak menumpuk di layar
 if playerGui:FindFirstChild("AiExecutorGui") then
 	playerGui.AiExecutorGui:Destroy()
 end
 
--- 1. ScreenGui Utama
 local aiGui = Instance.new("ScreenGui")
 aiGui.Name = "AiExecutorGui"
 aiGui.ResetOnSpawn = false
 aiGui.Parent = playerGui
 
--- 2. MainFrame (Kotak Tengah Layar)
+-- TOMBOL KECIL UNTUK BUKA / TUTUP (TOGGLE BUTTON)
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Name = "ToggleUI"
+toggleBtn.Size = UDim2.new(0, 50, 0, 50)
+toggleBtn.Position = UDim2.new(0.02, 0, 0.2, 0)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 216)
+toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.Text = "AI"
+toggleBtn.TextSize = 18
+toggleBtn.ZIndex = 10
+toggleBtn.Parent = aiGui
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(1, 0)
+toggleCorner.Parent = toggleBtn
+
+-- PANEL UTAMA EXECUTOR AI
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0.8, 0, 0.7, 0) -- Otomatis menyesuaikan skala HP/PC
+mainFrame.Size = UDim2.new(0.7, 0, 0.65, 0)
 mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
 mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 mainFrame.BorderSizePixel = 0
+mainFrame.Rotation = 0 
 mainFrame.Parent = aiGui
 
 local uiCorner = Instance.new("UICorner")
 uiCorner.CornerRadius = UDim.new(0, 12)
 uiCorner.Parent = mainFrame
 
--- 3. Panel Kiri (Workspace Kode)
+-- Panel Kiri (Workspace Tempat Menaruh Kode)
 local leftPanel = Instance.new("Frame")
 leftPanel.Name = "LeftPanel"
 leftPanel.Size = UDim2.new(0.5, -15, 1, -20)
@@ -58,10 +76,10 @@ local leftCorner = Instance.new("UICorner")
 leftCorner.CornerRadius = UDim.new(0, 8)
 leftCorner.Parent = leftPanel
 
--- 4. TextBox Input Teks Editor
+-- TextBox Tempat Ketik Skrip
 local scriptEditor = Instance.new("TextBox")
 scriptEditor.Name = "TextBox"
-scriptEditor.Size = UDim2.new(1, 0, 1, -90)
+scriptEditor.Size = UDim2.new(1, 0, 1, -125)
 scriptEditor.Position = UDim2.new(0, 0, 0, 0)
 scriptEditor.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
 scriptEditor.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -71,32 +89,47 @@ scriptEditor.ClearTextOnFocus = false
 scriptEditor.MultiLine = true
 scriptEditor.TextWrapped = true
 scriptEditor.Font = Enum.Font.Code
-scriptEditor.Text = "-- Tempel skrip Python/JS/Link ke sini..."
+scriptEditor.TextSize = 14
+scriptEditor.Text = "print(\"Hallo\")"
 scriptEditor.Parent = leftPanel
 
--- 5. Tombol Execute Script
+-- Tombol Execute Script
 local executeBtn = Instance.new("TextButton")
 executeBtn.Name = "ExecuteButton"
-executeBtn.Size = UDim2.new(1, 0, 0, 40)
-executeBtn.Position = UDim2.new(0, 0, 1, -40)
+executeBtn.Size = UDim2.new(1, 0, 0, 35)
+executeBtn.Position = UDim2.new(0, 0, 1, -35)
 executeBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 216)
 executeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 executeBtn.Font = Enum.Font.GothamBold
 executeBtn.Text = "⚡ EXECUTE SCRIPT"
+executeBtn.TextSize = 12
 executeBtn.Parent = leftPanel
 
--- 6. Tombol Clear Text
+-- Tombol Clear Teks Ketikan
 local clearBtn = Instance.new("TextButton")
 clearBtn.Name = "ClearButton"
 clearBtn.Size = UDim2.new(1, 0, 0, 35)
-clearBtn.Position = UDim2.new(0, 0, 1, -80)
-clearBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-clearBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+clearBtn.Position = UDim2.new(0, 0, 1, -75)
+clearBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+clearBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
 clearBtn.Font = Enum.Font.GothamBold
-clearBtn.Text = "🟥 CLEAR TEXT"
+clearBtn.Text = "🗑️ CLEAR TEXT"
+clearBtn.TextSize = 12
 clearBtn.Parent = leftPanel
 
--- 7. Panel Kanan (Chatbox Status AI)
+-- Tombol Hapus UI Permanen
+local deleteUiBtn = Instance.new("TextButton")
+deleteUiBtn.Name = "DeleteUiButton"
+deleteUiBtn.Size = UDim2.new(1, 0, 0, 35)
+deleteUiBtn.Position = UDim2.new(0, 0, 1, -115)
+deleteUiBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+deleteUiBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+deleteUiBtn.Font = Enum.Font.GothamBold
+deleteUiBtn.Text = "❌ DELETE UI PERMANENT"
+deleteUiBtn.TextSize = 12
+deleteUiBtn.Parent = leftPanel
+
+-- Panel Kanan (Chatbox Status AI)
 local rightPanel = Instance.new("Frame")
 rightPanel.Name = "RightPanel"
 rightPanel.Size = UDim2.new(0.5, -15, 1, -20)
@@ -109,10 +142,10 @@ local rightCorner = Instance.new("UICorner")
 rightCorner.CornerRadius = UDim.new(0, 8)
 rightCorner.Parent = rightPanel
 
--- 8. ChatLog TextLabel Status AI
+-- ChatLog TextLabel Status AI
 local aiChatLog = Instance.new("TextLabel")
 aiChatLog.Name = "ChatLog"
-aiChatLog.Size = UDim2.new(1, -20, 1, -20)
+aiChatLog.Size = UDim2.new(1, -20, 1, -55)
 aiChatLog.Position = UDim2.new(0, 10, 0, 10)
 aiChatLog.BackgroundTransparency = 1
 aiChatLog.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -120,8 +153,88 @@ aiChatLog.TextXAlignment = Enum.TextXAlignment.Left
 aiChatLog.TextYAlignment = Enum.TextYAlignment.Top
 aiChatLog.TextWrapped = true
 aiChatLog.Font = Enum.Font.Gotham
-aiChatLog.Text = "[AI Assistant]: Sistem aktif! Delta siap menyalurkan perintah."
+aiChatLog.TextSize = 12
+aiChatLog.Text = "[AI Assistant]: Halo! Ketik pesanmu di kotak bawah untuk mengobrol denganku."
 aiChatLog.Parent = rightPanel
+
+-- KOTAK TEMPAT MENGETIK CHAT KE AI
+local aiChatInput = Instance.new("TextBox")
+aiChatInput.Name = "AiChatInput"
+aiChatInput.Size = UDim2.new(1, -55, 0, 35)
+aiChatInput.Position = UDim2.new(0, 0, 1, -35)
+aiChatInput.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
+aiChatInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+aiChatInput.PlaceholderText = "Tanya AI sesuatu ke sini..."
+aiChatInput.Text = ""
+aiChatInput.Font = Enum.Font.Gotham
+aiChatInput.TextSize = 12
+aiChatInput.TextXAlignment = Enum.TextXAlignment.Left
+aiChatInput.ClearTextOnFocus = true
+aiChatInput.Parent = rightPanel
+
+local inputCorner = Instance.new("UICorner")
+inputCorner.CornerRadius = UDim.new(0, 6)
+inputCorner.Parent = aiChatInput
+
+-- TOMBOL UNTUK MENGIRIM CHAT KE AI
+local sendChatBtn = Instance.new("TextButton")
+sendChatBtn.Name = "SendChatButton"
+sendChatBtn.Size = UDim2.new(0, 50, 0, 35)
+sendChatBtn.Position = UDim2.new(1, -50, 1, -35)
+sendChatBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 216)
+sendChatBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+sendChatBtn.Font = Enum.Font.GothamBold
+sendChatBtn.Text = "SEND"
+sendChatBtn.TextSize = 11
+sendChatBtn.Parent = rightPanel
+
+local sendCorner = Instance.new("UICorner")
+sendCorner.CornerRadius = UDim.new(0, 6)
+sendCorner.Parent = sendChatBtn
+
+-- Buka Tutup & Hapus UI
+toggleBtn.MouseButton1Click:Connect(function() mainFrame.Visible = not mainFrame.Visible end)
+deleteUiBtn.MouseButton1Click:Connect(function() aiGui:Destroy() end)
+
+-- ====================================================================
+-- 🔒 FITUR BARU: LOGIKA SERET & GESER PANEL UTAMA (DRAGGABLE ENGINE)
+-- ====================================================================
+local dragging, dragInput, dragStart, startPos
+
+local function update(input)
+	local delta = input.Position - dragStart
+	local targetPosition = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+	
+	-- Efek transisi pergeseran yang mulus (smooth dragging)
+	TweenService:Create(mainFrame, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = targetPosition}):Play()
+end
+
+mainFrame.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = mainFrame.Position
+		
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
+	end
+end)
+
+mainFrame.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+		dragInput = input
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if input == dragInput and dragging then
+		update(input)
+	end
+end)
+
 -- ====================================================================
 -- BAGIAN 3: ENVIRONMENT ENGINE & FILE SYSTEM BYPASS
 -- ====================================================================
