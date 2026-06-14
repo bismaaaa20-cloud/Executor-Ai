@@ -1,26 +1,27 @@
 -- ====================================================================
--- BAGIAN 1: SYSTEM SERVICES & CONFIGURATION
+-- BAGIAN 1: SYSTEM SERVICES & CONFIGURATION (CLOUD COMPATIBLE)
 -- ====================================================================
 local HttpService = game:GetService("HttpService")
 local LogService = game:GetService("LogService")
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 
--- 🔑 MASUKKAN API KEY RESMI ANDA DI SINI
+-- 🔑 MASUKKAN API KEY RESMI ANDA DI SINI (JANGAN SAMPAI BOCOR)
 local GEMINI_API_KEY = "ISI_API_KEY_GEMINI_DISINI"
 local OPENAI_API_KEY = "ISI_API_KEY_OPENAI_DISINI"
 
--- Inisialisasi Lingkungan Global & Bypass Internet Executor
+-- Inisialisasi Lingkungan Global & Sistem Penyimpanan File (.txt)
 local _custom_global_env = getgenv and getgenv() or _G
 local requestFunc = request or http_request or (http and http.request)
+local CHAT_HISTORY_FILE = "Ai_Chat_History.txt"
 -- ====================================================================
--- PERBAIKAN BAGIAN 2: AUTOMATIC UI BUILDER WITH ACTIVE CHATBOX & DRAGGABLE FRAME
+-- BAGIAN 2: AUTOMATIC UI BUILDER WITH ACTIVE CHATBOX & TOP BAR
 -- ====================================================================
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
-local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
 
 if playerGui:FindFirstChild("AiExecutorGui") then
 	playerGui.AiExecutorGui:Destroy()
@@ -31,7 +32,7 @@ aiGui.Name = "AiExecutorGui"
 aiGui.ResetOnSpawn = false
 aiGui.Parent = playerGui
 
--- TOMBOL KECIL UNTUK BUKA / TUTUP (TOGGLE BUTTON)
+-- Tombol Bulat "AI" di Pojok untuk Buka/Tutup Panel Utama
 local toggleBtn = Instance.new("TextButton")
 toggleBtn.Name = "ToggleUI"
 toggleBtn.Size = UDim2.new(0, 50, 0, 50)
@@ -48,7 +49,7 @@ local toggleCorner = Instance.new("UICorner")
 toggleCorner.CornerRadius = UDim.new(1, 0)
 toggleCorner.Parent = toggleBtn
 
--- PANEL UTAMA EXECUTOR AI
+-- Panel Utama Terbelah Dua (Lurus & Tidak Miring di Layar)
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
 mainFrame.Size = UDim2.new(0.7, 0, 0.65, 0)
@@ -56,18 +57,42 @@ mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
 mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 mainFrame.BorderSizePixel = 0
-mainFrame.Rotation = 0 
 mainFrame.Parent = aiGui
 
 local uiCorner = Instance.new("UICorner")
 uiCorner.CornerRadius = UDim.new(0, 12)
 uiCorner.Parent = mainFrame
 
--- Panel Kiri (Workspace Tempat Menaruh Kode)
+-- Bar Abu-Abu Atas Khusus Menggeser Panel (Drag Handle)
+local topDragBar = Instance.new("Frame")
+topDragBar.Name = "TopDragBar"
+topDragBar.Size = UDim2.new(1, 0, 0, 30)
+topDragBar.Position = UDim2.new(0, 0, 0, 0)
+topDragBar.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+topDragBar.BorderSizePixel = 0
+topDragBar.Parent = mainFrame
+
+local barCorner = Instance.new("UICorner")
+barCorner.CornerRadius = UDim.new(0, 12)
+barCorner.Parent = topDragBar
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Name = "TitleLabel"
+titleLabel.Size = UDim2.new(1, -20, 1, 0)
+titleLabel.Position = UDim2.new(0, 10, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.TextColor3 = Color3.fromRGB(0, 180, 216)
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextSize = 12
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Text = "SUPREME AI EXECUTOR - SENTUH BAR INI UNTUK MENGGESER"
+titleLabel.Parent = topDragBar
+
+-- Panel Kiri (Workspace Kode)
 local leftPanel = Instance.new("Frame")
 leftPanel.Name = "LeftPanel"
-leftPanel.Size = UDim2.new(0.5, -15, 1, -20)
-leftPanel.Position = UDim2.new(0, 10, 0, 10)
+leftPanel.Size = UDim2.new(0.5, -15, 1, -50)
+leftPanel.Position = UDim2.new(0, 10, 0, 40)
 leftPanel.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
 leftPanel.BorderSizePixel = 0
 leftPanel.Parent = mainFrame
@@ -76,7 +101,7 @@ local leftCorner = Instance.new("UICorner")
 leftCorner.CornerRadius = UDim.new(0, 8)
 leftCorner.Parent = leftPanel
 
--- TextBox Tempat Ketik Skrip
+-- TextBox Editor Kode Utama
 local scriptEditor = Instance.new("TextBox")
 scriptEditor.Name = "TextBox"
 scriptEditor.Size = UDim2.new(1, 0, 1, -125)
@@ -93,7 +118,7 @@ scriptEditor.TextSize = 14
 scriptEditor.Text = "print(\"Hallo\")"
 scriptEditor.Parent = leftPanel
 
--- Tombol Execute Script
+-- Tombol Execute
 local executeBtn = Instance.new("TextButton")
 executeBtn.Name = "ExecuteButton"
 executeBtn.Size = UDim2.new(1, 0, 0, 35)
@@ -105,7 +130,7 @@ executeBtn.Text = "⚡ EXECUTE SCRIPT"
 executeBtn.TextSize = 12
 executeBtn.Parent = leftPanel
 
--- Tombol Clear Teks Ketikan
+-- Tombol Clear Text Kode Kiri
 local clearBtn = Instance.new("TextButton")
 clearBtn.Name = "ClearButton"
 clearBtn.Size = UDim2.new(1, 0, 0, 35)
@@ -117,7 +142,7 @@ clearBtn.Text = "🗑️ CLEAR TEXT"
 clearBtn.TextSize = 12
 clearBtn.Parent = leftPanel
 
--- Tombol Hapus UI Permanen
+-- Tombol Delete UI Permanen dari Layar
 local deleteUiBtn = Instance.new("TextButton")
 deleteUiBtn.Name = "DeleteUiButton"
 deleteUiBtn.Size = UDim2.new(1, 0, 0, 35)
@@ -129,11 +154,11 @@ deleteUiBtn.Text = "❌ DELETE UI PERMANENT"
 deleteUiBtn.TextSize = 12
 deleteUiBtn.Parent = leftPanel
 
--- Panel Kanan (Chatbox Status AI)
+-- Panel Kanan (Chatbox Status & Obrolan AI)
 local rightPanel = Instance.new("Frame")
 rightPanel.Name = "RightPanel"
-rightPanel.Size = UDim2.new(0.5, -15, 1, -20)
-rightPanel.Position = UDim2.new(0.5, 5, 0, 10)
+rightPanel.Size = UDim2.new(0.5, -15, 1, -50)
+rightPanel.Position = UDim2.new(0.5, 5, 0, 40)
 rightPanel.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
 rightPanel.BorderSizePixel = 0
 rightPanel.Parent = mainFrame
@@ -142,45 +167,54 @@ local rightCorner = Instance.new("UICorner")
 rightCorner.CornerRadius = UDim.new(0, 8)
 rightCorner.Parent = rightPanel
 
--- ChatLog TextLabel Status AI
+-- ChatLog ScrollingFrame Supaya Chat Panjang Bisa Di-scroll
+local chatLogFrame = Instance.new("ScrollingFrame")
+chatLogFrame.Name = "ChatLogFrame"
+chatLogFrame.Size = UDim2.new(1, -10, 1, -55)
+chatLogFrame.Position = UDim2.new(0, 5, 0, 5)
+chatLogFrame.BackgroundTransparency = 1
+chatLogFrame.CanvasSize = UDim2.new(0, 0, 2, 0)
+chatLogFrame.ScrollBarThickness = 4
+chatLogFrame.Parent = rightPanel
+
+-- Teks Obrolan Utama di Dalam Scroll Frame
 local aiChatLog = Instance.new("TextLabel")
 aiChatLog.Name = "ChatLog"
-aiChatLog.Size = UDim2.new(1, -20, 1, -55)
-aiChatLog.Position = UDim2.new(0, 10, 0, 10)
+aiChatLog.Size = UDim2.new(1, -10, 1, 0)
+aiChatLog.Position = UDim2.new(0, 5, 0, 0)
 aiChatLog.BackgroundTransparency = 1
-aiChatLog.TextColor3 = Color3.fromRGB(200, 200, 200)
+aiChatLog.TextColor3 = Color3.fromRGB(220, 220, 220)
 aiChatLog.TextXAlignment = Enum.TextXAlignment.Left
 aiChatLog.TextYAlignment = Enum.TextYAlignment.Top
 aiChatLog.TextWrapped = true
 aiChatLog.Font = Enum.Font.Gotham
-aiChatLog.TextSize = 12
-aiChatLog.Text = "[AI Assistant]: Halo! Ketik pesanmu di kotak bawah untuk mengobrol denganku."
-aiChatLog.Parent = rightPanel
+aiChatLog.TextSize = 13
+aiChatLog.Parent = chatLogFrame
 
--- KOTAK TEMPAT MENGETIK CHAT KE AI
+-- Kotak Tempat Ngetik Chat Ke AI
 local aiChatInput = Instance.new("TextBox")
 aiChatInput.Name = "AiChatInput"
-aiChatInput.Size = UDim2.new(1, -55, 0, 35)
-aiChatInput.Position = UDim2.new(0, 0, 1, -35)
+aiChatInput.Size = UDim2.new(1, -65, 0, 35)
+aiChatInput.Position = UDim2.new(0, 5, 1, -40)
 aiChatInput.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
 aiChatInput.TextColor3 = Color3.fromRGB(255, 255, 255)
-aiChatInput.PlaceholderText = "Tanya AI sesuatu ke sini..."
+aiChatInput.PlaceholderText = "Ketik pesan ke AI di sini..."
 aiChatInput.Text = ""
 aiChatInput.Font = Enum.Font.Gotham
 aiChatInput.TextSize = 12
 aiChatInput.TextXAlignment = Enum.TextXAlignment.Left
-aiChatInput.ClearTextOnFocus = true
+aiChatInput.ClearTextOnFocus = false 
 aiChatInput.Parent = rightPanel
 
 local inputCorner = Instance.new("UICorner")
 inputCorner.CornerRadius = UDim.new(0, 6)
 inputCorner.Parent = aiChatInput
 
--- TOMBOL UNTUK MENGIRIM CHAT KE AI
+-- Tombol Kirim Chat (SEND)
 local sendChatBtn = Instance.new("TextButton")
 sendChatBtn.Name = "SendChatButton"
 sendChatBtn.Size = UDim2.new(0, 50, 0, 35)
-sendChatBtn.Position = UDim2.new(1, -50, 1, -35)
+sendChatBtn.Position = UDim2.new(1, -55, 1, -40)
 sendChatBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 216)
 sendChatBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 sendChatBtn.Font = Enum.Font.GothamBold
@@ -191,79 +225,35 @@ sendChatBtn.Parent = rightPanel
 local sendCorner = Instance.new("UICorner")
 sendCorner.CornerRadius = UDim.new(0, 6)
 sendCorner.Parent = sendChatBtn
-
--- Buka Tutup & Hapus UI
-toggleBtn.MouseButton1Click:Connect(function() mainFrame.Visible = not mainFrame.Visible end)
-deleteUiBtn.MouseButton1Click:Connect(function() aiGui:Destroy() end)
-
 -- ====================================================================
--- 🔒 FITUR BARU: LOGIKA SERET & GESER PANEL UTAMA (DRAGGABLE ENGINE)
--- ====================================================================
-local dragging, dragInput, dragStart, startPos
-
-local function update(input)
-	local delta = input.Position - dragStart
-	local targetPosition = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-	
-	-- Efek transisi pergeseran yang mulus (smooth dragging)
-	TweenService:Create(mainFrame, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = targetPosition}):Play()
-end
-
-mainFrame.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		dragging = true
-		dragStart = input.Position
-		startPos = mainFrame.Position
-		
-		input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then
-				dragging = false
-			end
-		end)
-	end
-end)
-
-mainFrame.InputChanged:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-		dragInput = input
-	end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-	if input == dragInput and dragging then
-		update(input)
-	end
-end)
-
--- ====================================================================
--- BAGIAN 3: ENVIRONMENT ENGINE & FILE SYSTEM BYPASS
+-- BAGIAN 3: ENVIRONMENT ENGINE & FILE SYSTEM BYPASS (.TXT LOAD)
 -- ====================================================================
 local _virtual_files = {} 
 
-local function updateAiChat(message) 
-	aiChatLog.Text = "[AI Assistant]: " .. message 
-end
-
 -- Menyuntikkan Fungsi Standar Executor Profesional
-_custom_global_env.identifyexecutor = function() return "SupremeAI_Executor", "v7.0" end
-_custom_global_env.getexecutorname = function() return "SupremeAI_Executor" end
+_custom_global_env.getgenv = function() return _custom_global_env end
+_custom_global_env.identifyexecutor = function() return EXECUTOR_NAME, EXECUTOR_VERSION end
+_custom_global_env.getexecutorname = function() return EXECUTOR_NAME end
 _custom_global_env.setclipboard = function(text) print("[Clipboard]: Teks disalin: " .. tostring(text)) end
 _custom_global_env.toclipboard = _custom_global_env.setclipboard
 _custom_global_env.hookfunction = function(old_func, new_func) old_func = new_func return old_func end
 
-_custom_global_env.firetouchinterest = function(part1, part2, toggle)
-	if part1 and part2 then pcall(function() firetouchinterest(part1, part2, toggle) end) end
+_custom_global_env.firetouchinterest = function(p1, p2, toggle)
+	if p1 and p2 then pcall(function() firetouchinterest(p1, p2, toggle) end) end
 end
 _custom_global_env.fireclickdetector = function(cd, dist)
 	if cd then pcall(function() fireclickdetector(cd, dist or 0) end) end
 end
 
-_custom_global_env.writefile = function(file, content) _virtual_files[file] = tostring(content) end
-_custom_global_env.readfile = function(file)
-	if _virtual_files[file] then return _virtual_files[file] else error("File tidak ditemukan") end
+-- Sistem Manajemen File Kustom (writefile & readfile)
+_custom_global_env.writefile = function(filename, content)
+	_virtual_files[filename] = tostring(content)
 end
 
--- Bypass Khusus game:HttpGet
+_custom_global_env.readfile = function(filename)
+	if _virtual_files[filename] then return _virtual_files[filename] else return "" end
+end
+
 _custom_global_env.HttpGet = function(self, url)
 	local targetUrl = url or self
 	local success, result = pcall(function() return HttpService:GetAsync(targetUrl) end)
@@ -271,40 +261,46 @@ _custom_global_env.HttpGet = function(self, url)
 end
 game.HttpGet = _custom_global_env.HttpGet
 
--- Scanner Struktur Internal Game (Dark Dex Engine)
+-- Muat riwayat teks lama dari memori lokal Delta saat UI menyala
+local savedHistory = _custom_global_env.readfile(CHAT_HISTORY_FILE)
+if savedHistory ~= "" then
+	aiChatLog.Text = savedHistory
+else
+	aiChatLog.Text = "[AI Assistant]: Sesi baru dimulai! Riwayat .txt kosong. Ketik pesan di kolom bawah untuk ngobrol santai sama gue."
+end
+
+local function updateAiChat(message) aiChatLog.Text = "[AI Assistant]: " .. message end
+
+-- Scanner Struktur Internal Dokumen Game (Dark Dex Engine)
 local function scanGameStructure()
 	local structureData = { GameName = game.Name, Objects = {} }
-	local function readChildren(parentObj, currentTable)
-		for _, child in pairs(parentObj:GetChildren()) do
-			if not child:IsA("CoreScript") and not child:IsA("PlayerGui") then
-				table.insert(currentTable, { Name = child.Name, ClassName = child.ClassName })
-			end
-		end
-	end
-	pcall(function() readChildren(Workspace, structureData.Objects) end)
-	pcall(function() readChildren(ReplicatedStorage, structureData.Objects) end)
+	pcall(function()
+		for _, child in pairs(Workspace:GetChildren()) do table.insert(structureData.Objects, { Name = child.Name, ClassName = child.ClassName }) end
+		for _, child in pairs(ReplicatedStorage:GetChildren()) do table.insert(structureData.Objects, { Name = child.Name, ClassName = child.ClassName }) end
+	end)
 	return HttpService:JSONEncode(structureData)
 end
 -- ====================================================================
--- BAGIAN 4: CORE AI NETWORK INTERFACES (INTERNET ACCESS)
+-- BAGIAN 4: CORE AI CLOUD INTERFACES (AUTO-FILE DETECTOR ENABLED)
 -- ====================================================================
 local function customPostRequest(url, bodyData, headersData)
-	if not requestFunc then 
-		return HttpService:PostAsync(url, bodyData, Enum.HttpContentType.ApplicationJson, false, headersData) 
-	end
+	if not requestFunc then return HttpService:PostAsync(url, bodyData, Enum.HttpContentType.ApplicationJson, false, headersData) end
 	local response = requestFunc({Url = url, Method = "POST", Headers = headersData or {["Content-Type"] = "application/json"}, Body = bodyData})
 	if response and response.Success then return response.Body else error("Internet Error") end
 end
 
 local function generateOrConvertViaGemini(inputText, gameFileStructure)
 	local url = "https://googleapis.com" .. GEMINI_API_KEY
-	local prompt = "Ubah skrip asal menjadi skrip Lua Roblox siap pakai di PC/HP. Jika ada menu UI, buat versi UI Roblox SCALE. JANGAN memberikan teks penjelasan. Berikan HANYA kode Lua bersih tanpa backticks."
+	local prompt = "Kamu adalah AI Cloud Generator. Ubah skrip asal menjadi skrip Lua Roblox siap pakai di PC/HP. "
+		.. "Jika ada menu UI, buat versi UI Roblox SCALE. Berikan HANYA kode Lua bersih tanpa markdown backticks triple. "
+		.. "ATURAN WAJIB: Buat baris paling atas kodenya berisi komentar nama file unduhan yang cocok untuk skrip itu (Contoh format: -- FILE_NAME: nama_skrip.lua)"
+		
 	local body = HttpService:JSONEncode({ contents = { { parts = { { text = prompt .. "\n\n[STRUKTUR GAME]:\n" .. gameFileStructure .. "\n\n[PERINTAH]:\n" .. inputText } } } } })
 	local success, response = pcall(function() return customPostRequest(url, body) end)
 	if success then
 		local data = HttpService:JSONDecode(response)
-		if data.candidates and data.candidates[1].content.parts then
-			local clean = data.candidates[1].content.parts[1].text
+		if data.candidates and data.candidates.content.parts then
+			local clean = data.candidates.content.parts.text
 			return string.gsub(clean, "```lua", ""):gsub("```", ""):match("^%s*(.-)%s*$")
 		end
 	end
@@ -324,12 +320,12 @@ local function debugScriptViaOpenAI(currentText, errorMsg)
 	local success, response = pcall(function() return customPostRequest(url, body, headers) end)
 	if success then
 		local data = HttpService:JSONDecode(response)
-		if data.choices and data.choices[1].message then return HttpService:JSONDecode(data.choices[1].message.content) end
+		if data.choices and data.choices.message then return HttpService:JSONDecode(data.choices.message.content) end
 	end
 	return nil
 end
 -- ====================================================================
--- BAGIAN 5: UI INTERACTION & AUTOMATIC EXECUTION LOGIC
+-- BAGIAN 5: UI INTERACTION, LIVE CHAT ENGINE & CLOUD FILE SAVER
 -- ====================================================================
 local runExecutorEngine
 runExecutorEngine = function()
@@ -349,13 +345,12 @@ runExecutorEngine = function()
 						updateAiChat("ERROR di Baris " .. tostring(debugResult.line) .. " -> " .. debugResult.reason .. ". Mencoba Ulang...")
 						scriptEditor.Text = debugResult.fixedScript
 						task.wait(1)
-						runExecutorEngine() -- 🔄 Auto-retry otomatis jalankan ulang kodenya
+						runExecutorEngine() 
 					end
 				end)
 			end
 		end)
 		
-		-- Eksekusi Aman Anti-Freeze Menggunakan Isolasi Thread task.spawn
 		pcall(function()
 			local executableFunc = loadstring(scriptEditor.Text)
 			if executableFunc then
@@ -373,8 +368,7 @@ runExecutorEngine = function()
 				env.HttpGet = _custom_global_env.HttpGet
 				env.owner = Players.LocalPlayer
 				setfenv(executableFunc, env)
-				
-				task.spawn(executableFunc) -- Dijalankan di alur terpisah agar UI tidak hang
+				task.spawn(executableFunc) 
 			else
 				error("Syntax Error")
 			end
@@ -382,27 +376,90 @@ runExecutorEngine = function()
 	end)
 end
 
--- Trigger 1: Selesai Mengetik di Editor (Konversi Otomatis)
+-- Fokus Editor Kiri (Mendeteksi Kode & Otomatis Mengubah Jadi File Fisik di Folder Delta)
 scriptEditor.FocusLost:Connect(function(enterPressed)
 	if scriptEditor.Text == "" or scriptEditor.Text == " " then return end
 	if string.find(scriptEditor.Text, "HttpGet") or string.find(scriptEditor.Text, "loadstring") then return end
 	
-	updateAiChat("AI sedang memproses skrip...")
+	updateAiChat("AI Cloud sedang mengonversi & menciptakan file unduhan...")
 	task.spawn(function()
 		local gameJsonStructure = scanGameStructure()
 		local finalLua = generateOrConvertViaGemini(scriptEditor.Text, gameJsonStructure)
 		if finalLua then 
 			scriptEditor.Text = finalLua 
-			updateAiChat("Proses selesai!") 
+			
+			-- Jalankan sistem ekstrak nama file dari AI Cloud
+			local detectedFileName = "AI_Generated_Script.lua"
+			local lines = string.split(finalLua, "\n")
+			if lines[1] and string.find(lines[1], "FILE_NAME:") then
+				detectedFileName = string.gsub(lines[1], "%-%-%s*FILE_NAME:%s*", ""):match("^%s*(.-)%s*$")
+			end
+			
+			-- 💾 CIPTAKAN FILE SEBAGAI DOKUMEN REAL DI PENYIMPANAN DELTA HP/PC
+			if writefile then
+				writefile(detectedFileName, finalLua)
+				updateAiChat("Sukses! Teks skrip otomatis diubah menjadi file unduhan nyata: '" .. detectedFileName .. "' di folder Delta.")
+			else
+				_custom_global_env.writefile(detectedFileName, finalLua)
+				updateAiChat("Sukses! Skrip disimpan ke file memori virtual: '" .. detectedFileName .. "'")
+			end
 		end
 	end)
 end)
 
--- Trigger 2: Klik Tombol Execute Manual
 executeBtn.MouseButton1Click:Connect(function() runExecutorEngine() end)
+clearBtn.MouseButton1Click:Connect(function() scriptEditor.Text = "" updateAiChat("Editor teks dibersihkan!") end)
 
--- Trigger 3: Klik Tombol Clear Teks
-clearBtn.MouseButton1Click:Connect(function()
-	scriptEditor.Text = ""
-	updateAiChat("Editor teks dibersihkan!")
+-- 🚀 ENGINE LIVE CHAT INTERAKTIF DUA ARAH (GAYA BAHASA GAUL SANTAL)
+sendChatBtn.MouseButton1Click:Connect(function()
+	local userMessage = aiChatInput.Text
+	if userMessage == "" or userMessage == " " then return end
+	
+	aiChatInput.Text = "" 
+	local currentHistory = aiChatLog.Text
+	aiChatLog.Text = currentHistory .. "\n\n[You]: " .. userMessage .. "\n\n[AI]: Sedang memikirkan jawaban..."
+	chatLogFrame.CanvasPosition = Vector2.new(0, chatLogFrame.AbsoluteWindowSize.Y * 2)
+
+	task.spawn(function()
+		local url = "https://googleapis.com" .. GEMINI_API_KEY
+		local promptInstruction = "Kamu adalah robot asisten AI pintar yang tertanam di dalam Executor Roblox. Jawab obrolan pengguna berikut dengan santai, bersahabat, informatif, dan menggunakan bahasa Indonesia gaul (seperti pakai kata gue, lo, dll). Jawab dengan singkat maksimal 3 kalimat agar muat di layar HP. Pertanyaan: " .. userMessage
+		local requestBody = HttpService:JSONEncode({ contents = { { parts = { { text = promptInstruction } } } } })
+		
+		local success, response = pcall(function() return customPostRequest(url, requestBody) end)
+		if success then
+			local data = HttpService:JSONDecode(response)
+			if data.candidates and data.candidates.content.parts.text then
+				local aiResponse = data.candidates.content.parts.text
+				local newFullHistory = currentHistory .. "\n\n[You]: " .. userMessage .. "\n\n[AI]: " .. aiResponse
+				aiChatLog.Text = newFullHistory
+				
+				-- Rekam obrolan ke file riwayat teks (.txt) di Delta
+				if writefile then writefile(CHAT_HISTORY_FILE, newFullHistory) end
+				chatLogFrame.CanvasPosition = Vector2.new(0, chatLogFrame.AbsoluteWindowSize.Y * 3)
+			end
+		else
+			aiChatLog.Text = currentHistory .. "\n\n[System]: Gagal terhubung ke server obrolan internet."
+		end
+	end)
 end)
+
+toggleBtn.MouseButton1Click:Connect(function() mainFrame.Visible = not mainFrame.Visible end)
+deleteUiBtn.MouseButton1Click:Connect(function() aiGui:Destroy() end)
+
+-- JALUR KHUSUS SENSOR DRAGGABLE PADA BAR ATAS
+local dragging, dragInput, dragStart, startPos
+local function update(input)
+	local delta = input.Position - dragStart
+	local targetPosition = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+	TweenService:Create(mainFrame, TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = targetPosition}):Play()
+end
+topDragBar.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true dragStart = input.Position startPos = mainFrame.Position
+		input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
+	end
+end)
+topDragBar.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
+end)
+UserInputService.InputChanged:Connect(function(input) if input == dragInput and dragging then update(input) end end)
