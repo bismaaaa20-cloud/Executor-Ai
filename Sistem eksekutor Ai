@@ -1,99 +1,198 @@
 -- ====================================================================
--- SYSTEM PRO: SUPREME AI EXECUTOR + AUTO-RETRY + CLEAR ENGINE
+-- BAGIAN 1: SYSTEM SERVICES & CONFIGURATION
 -- ====================================================================
-
 local HttpService = game:GetService("HttpService")
 local LogService = game:GetService("LogService")
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- 🔑 CONFIGURATION: Masukkan API Key Resmi Anda di Sini
+-- 🔑 MASUKKAN API KEY RESMI ANDA DI SINI
 local GEMINI_API_KEY = "ISI_API_KEY_GEMINI_DISINI"
 local OPENAI_API_KEY = "ISI_API_KEY_OPENAI_DISINI"
 
--- 📐 Hubungan Komponen UI
-local mainFrame = script.Parent
-local leftPanel = mainFrame:WaitForChild("LeftPanel")
-local rightPanel = mainFrame:WaitForChild("RightPanel")
-
-local scriptEditor = leftPanel:WaitForChild("TextBox")
-local executeBtn = leftPanel:WaitForChild("ExecuteButton")
-local clearBtn = leftPanel:WaitForChild("ClearButton") -- 🟥 Komponen Baru
-local aiChatLog = rightPanel:WaitForChild("ChatLog")
-
--- 🔒 INITIALIZATION: GLOBAL ENVIRONMENT
-local _custom_global_env = {}
-getfenv().getgenv = function() return _custom_global_env end
-
+-- Inisialisasi Lingkungan Global & Bypass Internet Executor
+local _custom_global_env = getgenv and getgenv() or _G
+local requestFunc = request or http_request or (http and http.request)
 -- ====================================================================
--- 🛠️ FITUR EXECUTOR STANDAR INDUSTRI
+-- BAGIAN 2: AUTOMATIC UI BUILDER (INSTANCE GENERATOR)
 -- ====================================================================
-local EXECUTOR_NAME = "SupremeAI_Executor"
-local EXECUTOR_VERSION = "v5.5_ClearEdition"
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- Membersihkan UI lama agar tidak menumpuk di layar
+if playerGui:FindFirstChild("AiExecutorGui") then
+	playerGui.AiExecutorGui:Destroy()
+end
+
+-- 1. ScreenGui Utama
+local aiGui = Instance.new("ScreenGui")
+aiGui.Name = "AiExecutorGui"
+aiGui.ResetOnSpawn = false
+aiGui.Parent = playerGui
+
+-- 2. MainFrame (Kotak Tengah Layar)
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0.8, 0, 0.7, 0) -- Otomatis menyesuaikan skala HP/PC
+mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = aiGui
+
+local uiCorner = Instance.new("UICorner")
+uiCorner.CornerRadius = UDim.new(0, 12)
+uiCorner.Parent = mainFrame
+
+-- 3. Panel Kiri (Workspace Kode)
+local leftPanel = Instance.new("Frame")
+leftPanel.Name = "LeftPanel"
+leftPanel.Size = UDim2.new(0.5, -15, 1, -20)
+leftPanel.Position = UDim2.new(0, 10, 0, 10)
+leftPanel.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
+leftPanel.BorderSizePixel = 0
+leftPanel.Parent = mainFrame
+
+local leftCorner = Instance.new("UICorner")
+leftCorner.CornerRadius = UDim.new(0, 8)
+leftCorner.Parent = leftPanel
+
+-- 4. TextBox Input Teks Editor
+local scriptEditor = Instance.new("TextBox")
+scriptEditor.Name = "TextBox"
+scriptEditor.Size = UDim2.new(1, 0, 1, -90)
+scriptEditor.Position = UDim2.new(0, 0, 0, 0)
+scriptEditor.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
+scriptEditor.TextColor3 = Color3.fromRGB(255, 255, 255)
+scriptEditor.TextXAlignment = Enum.TextXAlignment.Left
+scriptEditor.TextYAlignment = Enum.TextYAlignment.Top
+scriptEditor.ClearTextOnFocus = false
+scriptEditor.MultiLine = true
+scriptEditor.TextWrapped = true
+scriptEditor.Font = Enum.Font.Code
+scriptEditor.Text = "-- Tempel skrip Python/JS/Link ke sini..."
+scriptEditor.Parent = leftPanel
+
+-- 5. Tombol Execute Script
+local executeBtn = Instance.new("TextButton")
+executeBtn.Name = "ExecuteButton"
+executeBtn.Size = UDim2.new(1, 0, 0, 40)
+executeBtn.Position = UDim2.new(0, 0, 1, -40)
+executeBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 216)
+executeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+executeBtn.Font = Enum.Font.GothamBold
+executeBtn.Text = "⚡ EXECUTE SCRIPT"
+executeBtn.Parent = leftPanel
+
+-- 6. Tombol Clear Text
+local clearBtn = Instance.new("TextButton")
+clearBtn.Name = "ClearButton"
+clearBtn.Size = UDim2.new(1, 0, 0, 35)
+clearBtn.Position = UDim2.new(0, 0, 1, -80)
+clearBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+clearBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+clearBtn.Font = Enum.Font.GothamBold
+clearBtn.Text = "🟥 CLEAR TEXT"
+clearBtn.Parent = leftPanel
+
+-- 7. Panel Kanan (Chatbox Status AI)
+local rightPanel = Instance.new("Frame")
+rightPanel.Name = "RightPanel"
+rightPanel.Size = UDim2.new(0.5, -15, 1, -20)
+rightPanel.Position = UDim2.new(0.5, 5, 0, 10)
+rightPanel.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
+rightPanel.BorderSizePixel = 0
+rightPanel.Parent = mainFrame
+
+local rightCorner = Instance.new("UICorner")
+rightCorner.CornerRadius = UDim.new(0, 8)
+rightCorner.Parent = rightPanel
+
+-- 8. ChatLog TextLabel Status AI
+local aiChatLog = Instance.new("TextLabel")
+aiChatLog.Name = "ChatLog"
+aiChatLog.Size = UDim2.new(1, -20, 1, -20)
+aiChatLog.Position = UDim2.new(0, 10, 0, 10)
+aiChatLog.BackgroundTransparency = 1
+aiChatLog.TextColor3 = Color3.fromRGB(200, 200, 200)
+aiChatLog.TextXAlignment = Enum.TextXAlignment.Left
+aiChatLog.TextYAlignment = Enum.TextYAlignment.Top
+aiChatLog.TextWrapped = true
+aiChatLog.Font = Enum.Font.Gotham
+aiChatLog.Text = "[AI Assistant]: Sistem aktif! Delta siap menyalurkan perintah."
+aiChatLog.Parent = rightPanel
+-- ====================================================================
+-- BAGIAN 3: ENVIRONMENT ENGINE & FILE SYSTEM BYPASS
+-- ====================================================================
 local _virtual_files = {} 
 
-getfenv().identifyexecutor = function() return EXECUTOR_NAME, EXECUTOR_VERSION end
-getfenv().getexecutorname = function() return EXECUTOR_NAME end
-getfenv().setclipboard = function(text) print("[Clipboard]: Teks disalin: " .. tostring(text)) end
-getfenv().toclipboard = getfenv().setclipboard
-getfenv().hookfunction = function(old_func, new_func) old_func = new_func return old_func end
-getfenv().firetouchinterest = function(part1, part2, toggle)
+local function updateAiChat(message) 
+	aiChatLog.Text = "[AI Assistant]: " .. message 
+end
+
+-- Menyuntikkan Fungsi Standar Executor Profesional
+_custom_global_env.identifyexecutor = function() return "SupremeAI_Executor", "v7.0" end
+_custom_global_env.getexecutorname = function() return "SupremeAI_Executor" end
+_custom_global_env.setclipboard = function(text) print("[Clipboard]: Teks disalin: " .. tostring(text)) end
+_custom_global_env.toclipboard = _custom_global_env.setclipboard
+_custom_global_env.hookfunction = function(old_func, new_func) old_func = new_func return old_func end
+
+_custom_global_env.firetouchinterest = function(part1, part2, toggle)
 	if part1 and part2 then pcall(function() firetouchinterest(part1, part2, toggle) end) end
 end
-getfenv().fireclickdetector = function(clickDetector, distance)
-	if clickDetector then pcall(function() fireclickdetector(clickDetector, distance or 0) end) end
-end
-getfenv().writefile = function(filename, content) _virtual_files[filename] = tostring(content) end
-getfenv().readfile = function(filename)
-	if _virtual_files[filename] then return _virtual_files[filename] else error("File tidak ditemukan") end
+_custom_global_env.fireclickdetector = function(cd, dist)
+	if cd then pcall(function() fireclickdetector(cd, dist or 0) end) end
 end
 
--- 💬 Fungsi Pembantu Status Obrolan AI
-local function updateAiChat(message) aiChatLog.Text = "[AI Assistant]: " .. message end
+_custom_global_env.writefile = function(file, content) _virtual_files[file] = tostring(content) end
+_custom_global_env.readfile = function(file)
+	if _virtual_files[file] then return _virtual_files[file] else error("File tidak ditemukan") end
+end
 
--- ====================================================================
--- 🔎 SCANNER INTERNAL GAME (Gaya Dark Dex)
--- ====================================================================
+-- Bypass Khusus game:HttpGet
+_custom_global_env.HttpGet = function(self, url)
+	local targetUrl = url or self
+	local success, result = pcall(function() return HttpService:GetAsync(targetUrl) end)
+	if success then return result else error("Gagal memuat URL") end
+end
+game.HttpGet = _custom_global_env.HttpGet
+
+-- Scanner Struktur Internal Game (Dark Dex Engine)
 local function scanGameStructure()
 	local structureData = { GameName = game.Name, Objects = {} }
-	local function readChildren(parentObj, currentTable, maxDepth)
-		if maxDepth <= 0 then return end
+	local function readChildren(parentObj, currentTable)
 		for _, child in pairs(parentObj:GetChildren()) do
 			if not child:IsA("CoreScript") and not child:IsA("PlayerGui") then
-				local itemData = { Name = child.Name, ClassName = child.ClassName, Children = {} }
-				if child:IsA("RemoteEvent") or child:IsA("RemoteFunction") then itemData.FullName = child:GetFullName() end
-				table.insert(currentTable, itemData)
-				pcall(function() readChildren(child, itemData.Children, maxDepth - 1) end)
+				table.insert(currentTable, { Name = child.Name, ClassName = child.ClassName })
 			end
 		end
 	end
-	pcall(function() readChildren(Workspace, structureData.Objects, 2) end)
-	pcall(function() readChildren(ReplicatedStorage, structureData.Objects, 2) end)
+	pcall(function() readChildren(Workspace, structureData.Objects) end)
+	pcall(function() readChildren(ReplicatedStorage, structureData.Objects) end)
 	return HttpService:JSONEncode(structureData)
 end
-
-local runExecutorEngine
-
 -- ====================================================================
--- SECTION 1: CORE AI ENGINE (KONEKSI INTERNET GEMINI & OPENAI)
+-- BAGIAN 4: CORE AI NETWORK INTERFACES (INTERNET ACCESS)
 -- ====================================================================
+local function customPostRequest(url, bodyData, headersData)
+	if not requestFunc then 
+		return HttpService:PostAsync(url, bodyData, Enum.HttpContentType.ApplicationJson, false, headersData) 
+	end
+	local response = requestFunc({Url = url, Method = "POST", Headers = headersData or {["Content-Type"] = "application/json"}, Body = bodyData})
+	if response and response.Success then return response.Body else error("Internet Error") end
+end
 
 local function generateOrConvertViaGemini(inputText, gameFileStructure)
 	local url = "https://googleapis.com" .. GEMINI_API_KEY
-	local promptInstruction = "Kamu adalah mesin AI Executor bernama " .. EXECUTOR_NAME .. " yang terhubung ke internet untuk belajar membuat skrip 100% lebih bagus. "
-		.. "Tugasmu: Ubah skrip asal (Python, JS, dll) atau buatkan skrip baru berdasarkan perintah teks pengguna. "
-		.. "ATURAN UTAMA: Jika pengguna meminta skrip untuk GAME INI, baca Struktur File JSON Game yang disediakan di bawah untuk mencari nama RemoteEvent/objek asli agar skrip pas tanpa salah tebak! "
-		.. "Jika ada menu UI, buat versi UI Roblox-nya menggunakan UDim2 SCALE agar pas di HP. JANGAN banyak tanya, JANGAN berikan teks penjelasan. Berikan HANYA kode Lua bersih tanpa markdown triple backticks."
-
-	local requestBody = { contents = { { parts = { { text = promptInstruction .. "\n\n[STRUKTUR FILE GAME]:\n" .. gameFileStructure .. "\n\n[PERINTAH/SKRIP ASAL]:\n" .. inputText } } } } }
-	local success, response = pcall(function() return HttpService:PostAsync(url, HttpService:JSONEncode(requestBody), Enum.HttpContentType.ApplicationJson) end)
+	local prompt = "Ubah skrip asal menjadi skrip Lua Roblox siap pakai di PC/HP. Jika ada menu UI, buat versi UI Roblox SCALE. JANGAN memberikan teks penjelasan. Berikan HANYA kode Lua bersih tanpa backticks."
+	local body = HttpService:JSONEncode({ contents = { { parts = { { text = prompt .. "\n\n[STRUKTUR GAME]:\n" .. gameFileStructure .. "\n\n[PERINTAH]:\n" .. inputText } } } } })
+	local success, response = pcall(function() return customPostRequest(url, body) end)
 	if success then
 		local data = HttpService:JSONDecode(response)
-		if data.candidates and data.candidates.content.parts then
-			local cleanLua = data.candidates.content.parts.text
-			cleanLua = string.gsub(cleanLua, "```lua", ""):gsub("```", "")
-			return cleanLua:match("^%s*(.-)%s*$")
+		if data.candidates and data.candidates[1].content.parts then
+			local clean = data.candidates[1].content.parts[1].text
+			return string.gsub(clean, "```lua", ""):gsub("```", ""):match("^%s*(.-)%s*$")
 		end
 	end
 	return nil
@@ -102,101 +201,95 @@ end
 local function debugScriptViaOpenAI(currentText, errorMsg)
 	local url = "https://openai.com"
 	local headers = { ["Authorization"] = "Bearer " .. OPENAI_API_KEY, ["Content-Type"] = "application/json" }
-	local requestBody = {
+	local body = HttpService:JSONEncode({
 		model = "gpt-4o-mini", response_format = { type = "json_object" },
 		messages = {
-			{ role = "system", content = "Kamu adalah robot auto-debugging internal internet untuk " .. EXECUTOR_NAME .. ". Analisis error log, cari baris nomor berapa yang rusak, jelaskan singkat, lalu cari solusi terbaik di internet dan berikan kode yang sudah diperbaiki 100% bagus. Respon HARUS JSON: {\"line\": nomor_baris, \"reason\": \"alasan\", \"fixedScript\": \"kode_perbaikan\"}" },
+			{ role = "system", content = "Analisis error log, cari baris rusak, berikan kode perbaikan. Respon HARUS JSON: {\"line\": nomor_baris, \"reason\": \"alasan\", \"fixedScript\": \"kode_perbaikan\"}" },
 			{ role = "user", content = "Skrip:\n" .. currentText .. "\n\nError:\n" .. errorMsg }
 		}
-	}
-	local success, response = pcall(function() return HttpService:PostAsync(url, HttpService:JSONEncode(requestBody), Enum.HttpContentType.ApplicationJson, false, headers) end)
+	})
+	local success, response = pcall(function() return customPostRequest(url, body, headers) end)
 	if success then
 		local data = HttpService:JSONDecode(response)
-		if data.choices and data.choices.message then return HttpService:JSONDecode(data.choices.message.content) end
+		if data.choices and data.choices[1].message then return HttpService:JSONDecode(data.choices[1].message.content) end
 	end
 	return nil
 end
-
 -- ====================================================================
--- SECTION 2: EXECUTOR AUTOMATION LOGIC (WITH AUTO-RETRY)
+-- BAGIAN 5: UI INTERACTION & AUTOMATIC EXECUTION LOGIC
 -- ====================================================================
-
+local runExecutorEngine
 runExecutorEngine = function()
 	if scriptEditor.Text == "" then return end
 	updateAiChat("Mengeksekusi skrip...")
 	
-	local errorConnection
-	errorConnection = LogService.MessageOut:Connect(function(message, messageType)
-		if messageType == Enum.MessageType.MessageOutputError then
-			errorConnection:Disconnect()
-			updateAiChat("Mendeteksi error! AI sedang belajar membetulkan kode...")
-			
-			task.spawn(function()
-				local debugResult = debugScriptViaOpenAI(scriptEditor.Text, message)
-				if debugResult then
-					updateAiChat("ERROR di Baris " .. tostring(debugResult.line) .. " -> " .. debugResult.reason .. ". Mencoba Ulang...")
-					scriptEditor.Text = debugResult.fixedScript
-					task.wait(1)
-					runExecutorEngine() 
-				end
-			end)
-		end
+	task.spawn(function()
+		local errorConnection
+		errorConnection = LogService.MessageOut:Connect(function(message, messageType)
+			if messageType == Enum.MessageType.MessageOutputError then
+				errorConnection:Disconnect()
+				updateAiChat("Mendeteksi error! AI sedang membetulkan kode...")
+				
+				task.spawn(function()
+					local debugResult = debugScriptViaOpenAI(scriptEditor.Text, message)
+					if debugResult then
+						updateAiChat("ERROR di Baris " .. tostring(debugResult.line) .. " -> " .. debugResult.reason .. ". Mencoba Ulang...")
+						scriptEditor.Text = debugResult.fixedScript
+						task.wait(1)
+						runExecutorEngine() -- 🔄 Auto-retry otomatis jalankan ulang kodenya
+					end
+				end)
+			end
+		end)
+		
+		-- Eksekusi Aman Anti-Freeze Menggunakan Isolasi Thread task.spawn
+		pcall(function()
+			local executableFunc = loadstring(scriptEditor.Text)
+			if executableFunc then
+				local env = getfenv(executableFunc)
+				env.getgenv = _custom_global_env.getgenv
+				env.identifyexecutor = _custom_global_env.identifyexecutor
+				env.getexecutorname = _custom_global_env.getexecutorname
+				env.setclipboard = _custom_global_env.setclipboard
+				env.toclipboard = _custom_global_env.toclipboard
+				env.hookfunction = _custom_global_env.hookfunction
+				env.firetouchinterest = _custom_global_env.firetouchinterest
+				env.fireclickdetector = _custom_global_env.fireclickdetector
+				env.writefile = _custom_global_env.writefile
+				env.readfile = _custom_global_env.readfile
+				env.HttpGet = _custom_global_env.HttpGet
+				env.owner = Players.LocalPlayer
+				setfenv(executableFunc, env)
+				
+				task.spawn(executableFunc) -- Dijalankan di alur terpisah agar UI tidak hang
+			else
+				error("Syntax Error")
+			end
+		end)
 	end)
-	
-	local success, err = pcall(function()
-		local executableFunc = loadstring(scriptEditor.Text)
-		if executableFunc then
-			local env = getfenv(executableFunc)
-			env.getgenv = getfenv().getgenv
-			env.identifyexecutor = getfenv().identifyexecutor
-			env.getexecutorname = getfenv().getexecutorname
-			env.setclipboard = getfenv().setclipboard
-			env.toclipboard = getfenv().toclipboard
-			env.hookfunction = getfenv().hookfunction
-			env.firetouchinterest = getfenv().firetouchinterest
-			env.fireclickdetector = getfenv().fireclickdetector
-			env.writefile = getfenv().writefile
-			env.readfile = getfenv().readfile
-			env.owner = Players.LocalPlayer
-			setfenv(executableFunc, env)
-			executableFunc()
-		else
-			error("Syntax Error")
-		end
-	end)
-	
-	if success then
-		task.wait(1)
-		if errorConnection.Connected then
-			errorConnection:Disconnect()
-			updateAiChat("Skrip sukses berjalan 100% lancar!")
-		end
-	end
 end
 
--- ====================================================================
--- SECTION 3: UI TRIGGERS
--- ====================================================================
-
+-- Trigger 1: Selesai Mengetik di Editor (Konversi Otomatis)
 scriptEditor.FocusLost:Connect(function(enterPressed)
 	if scriptEditor.Text == "" or scriptEditor.Text == " " then return end
+	if string.find(scriptEditor.Text, "HttpGet") or string.find(scriptEditor.Text, "loadstring") then return end
 	
-	local gameJsonStructure = scanGameStructure()
-	updateAiChat("AI sedang menganalisis file game & memproses skrip...")
-	
+	updateAiChat("AI sedang memproses skrip...")
 	task.spawn(function()
+		local gameJsonStructure = scanGameStructure()
 		local finalLua = generateOrConvertViaGemini(scriptEditor.Text, gameJsonStructure)
-		if finalLua then
-			scriptEditor.Text = finalLua
-			updateAiChat("Proses selesai! Skrip dioptimalkan untuk perangkat Anda.")
+		if finalLua then 
+			scriptEditor.Text = finalLua 
+			updateAiChat("Proses selesai!") 
 		end
 	end)
 end)
 
+-- Trigger 2: Klik Tombol Execute Manual
 executeBtn.MouseButton1Click:Connect(function() runExecutorEngine() end)
 
--- 🟥 PEMBARUAN: Logika Tombol Hapus Teks Permanen
+-- Trigger 3: Klik Tombol Clear Teks
 clearBtn.MouseButton1Click:Connect(function()
-	scriptEditor.Text = "" -- Menghapus seluruh teks di kotak editor
-	updateAiChat("Kotak editor teks berhasil dibersihkan! Memori data file tetap aman.")
+	scriptEditor.Text = ""
+	updateAiChat("Editor teks dibersihkan!")
 end)
