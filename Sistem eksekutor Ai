@@ -1,5 +1,5 @@
 -- ====================================================================
--- BAGIAN 1: SYSTEM SERVICES & CONFIGURATION (CLOUD COMPATIBLE)
+-- BAGIAN 1: SYSTEM SERVICES & CONFIGURATION (FIXED CLOUD COMPATIBLE)
 -- ====================================================================
 local HttpService = game:GetService("HttpService")
 local LogService = game:GetService("LogService")
@@ -9,16 +9,16 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 
--- 🔑 MASUKKAN API KEY RESMI ANDA DI SINI (JANGAN SAMPAI BOCOR)
+-- 🔑 MASUKKAN API KEY RESMI ANDA DI SINI
 local GEMINI_API_KEY = "ISI_API_KEY_GEMINI_DISINI"
 local OPENAI_API_KEY = "ISI_API_KEY_OPENAI_DISINI"
 
--- Inisialisasi Lingkungan Global & Sistem Penyimpanan File (.txt)
+-- Inisialisasi Lingkungan Global & File Riwayat Chat (.txt)
 local _custom_global_env = getgenv and getgenv() or _G
 local requestFunc = request or http_request or (http and http.request)
 local CHAT_HISTORY_FILE = "Ai_Chat_History.txt"
 -- ====================================================================
--- BAGIAN 2: AUTOMATIC UI BUILDER WITH ACTIVE CHATBOX & TOP BAR
+-- BAGIAN 2: AUTOMATIC UI BUILDER WITH ACTIVE CHATBOX (ALL BUTTONS FIXED)
 -- ====================================================================
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -42,7 +42,7 @@ toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 toggleBtn.Font = Enum.Font.GothamBold
 toggleBtn.Text = "AI"
 toggleBtn.TextSize = 18
-toggleBtn.ZIndex = 10
+toggleBtn.ZIndex = 20 -- Biar selalu di depan layar
 toggleBtn.Parent = aiGui
 
 local toggleCorner = Instance.new("UICorner")
@@ -57,6 +57,7 @@ mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 mainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
 mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 mainFrame.BorderSizePixel = 0
+mainFrame.ZIndex = 1
 mainFrame.Parent = aiGui
 
 local uiCorner = Instance.new("UICorner")
@@ -70,6 +71,7 @@ topDragBar.Size = UDim2.new(1, 0, 0, 30)
 topDragBar.Position = UDim2.new(0, 0, 0, 0)
 topDragBar.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
 topDragBar.BorderSizePixel = 0
+topDragBar.ZIndex = 2 
 topDragBar.Parent = mainFrame
 
 local barCorner = Instance.new("UICorner")
@@ -86,6 +88,7 @@ titleLabel.Font = Enum.Font.GothamBold
 titleLabel.TextSize = 12
 titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 titleLabel.Text = "SUPREME AI EXECUTOR - SENTUH BAR INI UNTUK MENGGESER"
+titleLabel.ZIndex = 3
 titleLabel.Parent = topDragBar
 
 -- Panel Kiri (Workspace Kode)
@@ -95,6 +98,7 @@ leftPanel.Size = UDim2.new(0.5, -15, 1, -50)
 leftPanel.Position = UDim2.new(0, 10, 0, 40)
 leftPanel.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
 leftPanel.BorderSizePixel = 0
+leftPanel.ZIndex = 2
 leftPanel.Parent = mainFrame
 
 local leftCorner = Instance.new("UICorner")
@@ -116,6 +120,7 @@ scriptEditor.TextWrapped = true
 scriptEditor.Font = Enum.Font.Code
 scriptEditor.TextSize = 14
 scriptEditor.Text = "print(\"Hallo\")"
+scriptEditor.ZIndex = 3
 scriptEditor.Parent = leftPanel
 
 -- Tombol Execute
@@ -128,6 +133,7 @@ executeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 executeBtn.Font = Enum.Font.GothamBold
 executeBtn.Text = "⚡ EXECUTE SCRIPT"
 executeBtn.TextSize = 12
+executeBtn.ZIndex = 5 -- Dipertinggi agar memotong sensor seret luar
 executeBtn.Parent = leftPanel
 
 -- Tombol Clear Text Kode Kiri
@@ -140,9 +146,10 @@ clearBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
 clearBtn.Font = Enum.Font.GothamBold
 clearBtn.Text = "🗑️ CLEAR TEXT"
 clearBtn.TextSize = 12
+clearBtn.ZIndex = 5
 clearBtn.Parent = leftPanel
 
--- Tombol Delete UI Permanen dari Layar
+-- 🛑 FIX: Tombol Delete UI Permanen (ZIndex Ditinggiin ke Lapisan Paling Atas)
 local deleteUiBtn = Instance.new("TextButton")
 deleteUiBtn.Name = "DeleteUiButton"
 deleteUiBtn.Size = UDim2.new(1, 0, 0, 35)
@@ -152,6 +159,7 @@ deleteUiBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 deleteUiBtn.Font = Enum.Font.GothamBold
 deleteUiBtn.Text = "❌ DELETE UI PERMANENT"
 deleteUiBtn.TextSize = 12
+deleteUiBtn.ZIndex = 5 -- Diatur ke 5 agar bebas dari tabrakan klik di HP Delta
 deleteUiBtn.Parent = leftPanel
 
 -- Panel Kanan (Chatbox Status & Obrolan AI)
@@ -161,6 +169,7 @@ rightPanel.Size = UDim2.new(0.5, -15, 1, -50)
 rightPanel.Position = UDim2.new(0.5, 5, 0, 40)
 rightPanel.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
 rightPanel.BorderSizePixel = 0
+rightPanel.ZIndex = 2
 rightPanel.Parent = mainFrame
 
 local rightCorner = Instance.new("UICorner")
@@ -175,6 +184,7 @@ chatLogFrame.Position = UDim2.new(0, 5, 0, 5)
 chatLogFrame.BackgroundTransparency = 1
 chatLogFrame.CanvasSize = UDim2.new(0, 0, 2, 0)
 chatLogFrame.ScrollBarThickness = 4
+chatLogFrame.ZIndex = 3
 chatLogFrame.Parent = rightPanel
 
 -- Teks Obrolan Utama di Dalam Scroll Frame
@@ -189,6 +199,7 @@ aiChatLog.TextYAlignment = Enum.TextYAlignment.Top
 aiChatLog.TextWrapped = true
 aiChatLog.Font = Enum.Font.Gotham
 aiChatLog.TextSize = 13
+aiChatLog.ZIndex = 4
 aiChatLog.Parent = chatLogFrame
 
 -- Kotak Tempat Ngetik Chat Ke AI
@@ -204,6 +215,7 @@ aiChatInput.Font = Enum.Font.Gotham
 aiChatInput.TextSize = 12
 aiChatInput.TextXAlignment = Enum.TextXAlignment.Left
 aiChatInput.ClearTextOnFocus = false 
+aiChatInput.ZIndex = 5
 aiChatInput.Parent = rightPanel
 
 local inputCorner = Instance.new("UICorner")
@@ -220,6 +232,7 @@ sendChatBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 sendChatBtn.Font = Enum.Font.GothamBold
 sendChatBtn.Text = "SEND"
 sendChatBtn.TextSize = 11
+sendChatBtn.ZIndex = 5
 sendChatBtn.Parent = rightPanel
 
 local sendCorner = Instance.new("UICorner")
@@ -230,7 +243,6 @@ sendCorner.Parent = sendChatBtn
 -- ====================================================================
 local _virtual_files = {} 
 
--- Menyuntikkan Fungsi Standar Executor Profesional
 _custom_global_env.getgenv = function() return _custom_global_env end
 _custom_global_env.identifyexecutor = function() return EXECUTOR_NAME, EXECUTOR_VERSION end
 _custom_global_env.getexecutorname = function() return EXECUTOR_NAME end
@@ -245,7 +257,6 @@ _custom_global_env.fireclickdetector = function(cd, dist)
 	if cd then pcall(function() fireclickdetector(cd, dist or 0) end) end
 end
 
--- Sistem Manajemen File Kustom (writefile & readfile)
 _custom_global_env.writefile = function(filename, content)
 	_virtual_files[filename] = tostring(content)
 end
@@ -261,7 +272,6 @@ _custom_global_env.HttpGet = function(self, url)
 end
 game.HttpGet = _custom_global_env.HttpGet
 
--- Muat riwayat teks lama dari memori lokal Delta saat UI menyala
 local savedHistory = _custom_global_env.readfile(CHAT_HISTORY_FILE)
 if savedHistory ~= "" then
 	aiChatLog.Text = savedHistory
@@ -271,7 +281,6 @@ end
 
 local function updateAiChat(message) aiChatLog.Text = "[AI Assistant]: " .. message end
 
--- Scanner Struktur Internal Dokumen Game (Dark Dex Engine)
 local function scanGameStructure()
 	local structureData = { GameName = game.Name, Objects = {} }
 	pcall(function()
@@ -376,7 +385,6 @@ runExecutorEngine = function()
 	end)
 end
 
--- Fokus Editor Kiri (Mendeteksi Kode & Otomatis Mengubah Jadi File Fisik di Folder Delta)
 scriptEditor.FocusLost:Connect(function(enterPressed)
 	if scriptEditor.Text == "" or scriptEditor.Text == " " then return end
 	if string.find(scriptEditor.Text, "HttpGet") or string.find(scriptEditor.Text, "loadstring") then return end
@@ -388,20 +396,18 @@ scriptEditor.FocusLost:Connect(function(enterPressed)
 		if finalLua then 
 			scriptEditor.Text = finalLua 
 			
-			-- Jalankan sistem ekstrak nama file dari AI Cloud
 			local detectedFileName = "AI_Generated_Script.lua"
 			local lines = string.split(finalLua, "\n")
-			if lines[1] and string.find(lines[1], "FILE_NAME:") then
-				detectedFileName = string.gsub(lines[1], "%-%-%s*FILE_NAME:%s*", ""):match("^%s*(.-)%s*$")
+			if lines and string.find(lines, "FILE_NAME:") then
+				detectedFileName = string.gsub(lines, "%-%-%s*FILE_NAME:%s*", ""):match("^%s*(.-)%s*$")
 			end
 			
-			-- 💾 CIPTAKAN FILE SEBAGAI DOKUMEN REAL DI PENYIMPANAN DELTA HP/PC
 			if writefile then
 				writefile(detectedFileName, finalLua)
-				updateAiChat("Sukses! Teks skrip otomatis diubah menjadi file unduhan nyata: '" .. detectedFileName .. "' di folder Delta.")
+				updateAiChat("Sukses! File diciptakan: '" .. detectedFileName .. "'")
 			else
 				_custom_global_env.writefile(detectedFileName, finalLua)
-				updateAiChat("Sukses! Skrip disimpan ke file memori virtual: '" .. detectedFileName .. "'")
+				updateAiChat("Sukses! Disimpan ke memori virtual: '" .. detectedFileName .. "'")
 			end
 		end
 	end)
@@ -410,7 +416,6 @@ end)
 executeBtn.MouseButton1Click:Connect(function() runExecutorEngine() end)
 clearBtn.MouseButton1Click:Connect(function() scriptEditor.Text = "" updateAiChat("Editor teks dibersihkan!") end)
 
--- 🚀 ENGINE LIVE CHAT INTERAKTIF DUA ARAH (GAYA BAHASA GAUL SANTAL)
 sendChatBtn.MouseButton1Click:Connect(function()
 	local userMessage = aiChatInput.Text
 	if userMessage == "" or userMessage == " " then return end
@@ -433,7 +438,6 @@ sendChatBtn.MouseButton1Click:Connect(function()
 				local newFullHistory = currentHistory .. "\n\n[You]: " .. userMessage .. "\n\n[AI]: " .. aiResponse
 				aiChatLog.Text = newFullHistory
 				
-				-- Rekam obrolan ke file riwayat teks (.txt) di Delta
 				if writefile then writefile(CHAT_HISTORY_FILE, newFullHistory) end
 				chatLogFrame.CanvasPosition = Vector2.new(0, chatLogFrame.AbsoluteWindowSize.Y * 3)
 			end
@@ -444,9 +448,13 @@ sendChatBtn.MouseButton1Click:Connect(function()
 end)
 
 toggleBtn.MouseButton1Click:Connect(function() mainFrame.Visible = not mainFrame.Visible end)
-deleteUiBtn.MouseButton1Click:Connect(function() aiGui:Destroy() end)
 
--- JALUR KHUSUS SENSOR DRAGGABLE PADA BAR ATAS
+-- 🛑 LOGIKA FIX: Hancurkan ScreenGui Secara Bersih Saat Tombol Merah Diklik
+deleteUiBtn.MouseButton1Click:Connect(function()
+	aiGui:Destroy()
+end)
+
+-- 🔒 SISTEM SENSOR DRAGGABLE (HANYA AKTIF PADA AREA BAR ABU-ABU ATAS)
 local dragging, dragInput, dragStart, startPos
 local function update(input)
 	local delta = input.Position - dragStart
